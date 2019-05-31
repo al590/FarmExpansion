@@ -29,6 +29,20 @@ namespace FarmExpansion
 
         public FarmExpansion()
         {
+            if (!StardewModdingAPI.Context.IsMainPlayer)
+            {
+                // NOTE: Temporary workaround.
+                // 
+                // The GameLocation read from the netcode in Multiplayer::readActiveLocation()
+                // has a null Map, which causes a crash in the line 
+                // Game1.currentLocation.resetForPlayerEntry() since it uses the Map property
+                // in both resetSharedState()/resetLocalState()
+                //
+                // Since readActiveLocation ends up creating a new instance of FarmExpansion
+                // using the default constructor, we'll set the Map property there with our
+                // already loaded map as a temporary fix...
+                Map = ModEntry.Framework.Map;
+            }
         }
 
         public FarmExpansion(Map m, string name, FEFramework framework) : base(/*"FarmExpansion", name*/)

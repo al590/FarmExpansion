@@ -46,6 +46,8 @@ namespace FarmExpansion.Framework
         internal Texture2D TreeTransplantFarmIcon;
         private IClickableMenu menuOverride;
         private bool overridableMenuActive;
+        private bool patchedMap = false;
+        public Map Map => map;
 
         public FEFramework(IModHelper helper, IMonitor monitor)
         {
@@ -264,22 +266,21 @@ namespace FarmExpansion.Framework
                 return;
             }
 
-            if (!File.Exists(Path.Combine(helper.DirectoryPath, "pslocationdata", $"{Constants.SaveFolderName}.xml")))
+            if (!Context.IsMainPlayer || !File.Exists(Path.Combine(helper.DirectoryPath, "pslocationdata", $"{Constants.SaveFolderName}.xml")))
             {
                 farmExpansion = new FarmExpansion(map, "FarmExpansion", this)
                 {
-                    IsFarm = true,
+                    IsFarm = true, 
                     IsOutdoors = true
                 };
-                /*if (Game1.currentSeason.Equals("winter"))
-                {
-                    // Get rid of grass maybe... at some point (only a few lines of code but may have unintended consequences)
-                }*/
             }
             else
-            {
                 Load();
-            }
+
+            /*if (Game1.currentSeason.Equals("winter"))
+            {
+                // Get rid of grass maybe... at some point (only a few lines of code but may have unintended consequences)
+            }*/
 
             for (int i = 0; i < farmExpansion.Map.TileSheets.Count; i++)
             {
@@ -296,8 +297,14 @@ namespace FarmExpansion.Framework
 
             Game1.locations.Add(farmExpansion);
             AfterAppendEvent?.Invoke(farmExpansion, EventArgs.Empty);
-            PatchMap();
-            RepairBuildingWarps();
+
+            // Farm game location isn't available at this point in multiplayer, so 
+            // we can only patch the map if we're the host
+            if (Context.IsMainPlayer)
+            {
+                PatchMap();
+                RepairBuildingWarps();
+            }
         }
 
         /// <summary>Raised before the game begins writes data to the save file (except the initial save creation).</summary>
@@ -326,6 +333,7 @@ namespace FarmExpansion.Framework
         {
             farmExpansion = null;
             map = null;
+            patchedMap = false;
         }
 
         /// <summary>Raised after the game begins a new day (including when the player loads a save).</summary>
@@ -410,6 +418,20 @@ namespace FarmExpansion.Framework
             else
             {
                 farmExpansion.removeCarpenter();
+            }
+        }
+
+        public void OnLocationListChanged(object sender, LocationListChangedEventArgs e)
+        {
+            if (Context.IsMainPlayer || patchedMap)
+                return;
+
+            var target = config.useBackwoodsEntrance ? "Backwoods" : "Farm";
+
+            if (e.Added?.Any(x => x?.Name == target) == true)
+            {
+                PatchMap();
+                RepairBuildingWarps();
             }
         }
 
@@ -545,6 +567,7 @@ namespace FarmExpansion.Framework
                 this.monitor.Log($"Could not find appropriate tilesheet, farm map will not be patched", LogLevel.Error);
                 return;
             }
+            patchedMap = true;
             int warpYLocA, warpYLocB, warpYLocC;
             List<Tile> tiles = new List<Tile>();
 

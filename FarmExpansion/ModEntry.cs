@@ -13,6 +13,7 @@ namespace FarmExpansion
     {
         private FEFramework framework;
         public static IModHelper ModHelper;
+        public static FEFramework Framework { get; private set; }
 
         public bool CanEdit<T>(IAssetInfo asset)
         {
@@ -68,6 +69,8 @@ namespace FarmExpansion
             helper.Events.GameLoop.Saved += framework.OnSaved;
             helper.Events.GameLoop.ReturnedToTitle += framework.OnReturnedToTitle;
             helper.Events.GameLoop.DayStarted += framework.OnDayStarted;
+            helper.Events.World.LocationListChanged += framework.OnLocationListChanged;
+            Framework = framework;
         }
 
         /// <summary>Get an API that other mods can access. This is always called after <see cref="Entry" />.</summary>
